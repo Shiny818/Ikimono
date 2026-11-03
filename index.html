@@ -97,6 +97,8 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .actions button:disabled{opacity:.4;transform:none;box-shadow:0 4px 0 var(--shell-edge)}
 .actions .run{grid-column:span 3;flex-direction:row;justify-content:center;gap:10px;background:var(--accent);color:#2A1D05}
 .actions .run span{font-size:1rem}
+.actions .trial{grid-column:span 3;flex-direction:row;justify-content:center;gap:10px;background:linear-gradient(90deg,#6A4CE0,#E05FA8);color:#FFFFFF}
+.actions .trial span{font-size:1rem;font-weight:800}
 
 
 .sheet{position:fixed;inset:0;background:rgba(10,6,25,.45);display:flex;align-items:flex-end;z-index:30}
@@ -147,6 +149,8 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .card p{margin:6px 0;line-height:1.5}
 .card .big{font-size:2rem}
 .card button{margin-top:14px;padding:10px 26px;font-size:1rem}
+.card button.alt{background:transparent;color:var(--btn-text);border:1.5px solid var(--btn-text)}
+.card .note-s{font-size:.85rem;opacity:.8}
 
 #toast{
   position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 24px);transform:translate(-50%,20px);
@@ -191,6 +195,7 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
     <button data-act="bath">🛁<span>おふろ</span></button>
     <button data-act="dex">📖<span>図鑑</span></button>
     <button data-act="run" class="run">🏃<span>ミニゲームでコインを稼ぐ</span></button>
+    <button data-act="trial" class="trial" id="trialBtn" hidden>👑<span>天空の試練に挑む</span></button>
   </nav>
 </main>
 
@@ -224,9 +229,9 @@ const KEY = 'ikimono-save-v1';
 const MIN = 60000, HOUR = 3600000;
 const GRACE = 6 * HOUR;          // トイレ/お風呂が0になってから死亡判定が始まるまでの猶予
 const HATCH_MS = 60000;          // 卵がかえるまで
-const SUPER_SCORE = 1500;        // 超生物の条件スコア
+const SUPER_SCORE = 2000;        // 超生物の条件スコア
 const STAGES = ['たまご','幼少期','成長期','成熟期','超生物'];
-const DECAY = {hunger:10, happy:8, toilet:8, bath:6}; // 1時間あたりの減少量
+const DECAY = {hunger:20, happy:16, toilet:16, bath:12}; // 1時間あたりの減少量(便意は空腹度で倍率が変わる)
 const FOOD = [
   {id:'onigiri', ic:'🍙', name:'おにぎり', tier:0, p:50},
   {id:'bento',   ic:'🍱', name:'おべんとう', tier:1, p:125},
@@ -430,6 +435,7 @@ function newState(prev){
     gen: prev ? prev.gen + 1 : 1,
     line:null, care:{food:0, toy:0, miss:0},
     dex: prev ? prev.dex : [],
+    hall: prev ? (prev.hall || []) : [],
   };
 }
 function load(){
@@ -449,12 +455,18 @@ function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e) 
 let S = load();
 
 /* ---------- 時間経過 ---------- */
+// 23:00〜6:00は睡眠時間
+function isSleep(t){ const hr = new Date(t).getHours(); return hr >= 23 || hr < 6; }
 function stepMinute(t){
   if (S.dead) return;
   if (S.stage === 0) return;
+  if (isSleep(t)){
+    for (const k of ['toilet', 'bath']) if (S.zero[k] != null) S.zero[k] += MIN;
+    return;
+  }
   for (const k in DECAY){
     const before = S[k];
-    S[k] = clamp(S[k] - DECAY[k] / 60);
+    S[k] = clamp(S[k] - DECAY[k] * (k === 'toilet' ? .5 + S.hunger / 100 : 1) / 60);
     if (before > 0 && S[k] <= 0) S.care.miss++;
   }
   for (const k of ['toilet','bath']){
@@ -710,7 +722,7 @@ function drawCreature(ctx, stage, x, y, u, t, mood){
       ctx.beginPath(); ctx.moveTo(s * ex - 9, ey - 9); ctx.lineTo(s * ex + 9, ey + 9);
       ctx.moveTo(s * ex + 9, ey - 9); ctx.lineTo(s * ex - 9, ey + 9); ctx.stroke();
     }
-  } else if ((t % 4) < .12){
+  } else if (mood.sleep || (t % 4) < .12){
     for (const s of [-1, 1]){
       ctx.beginPath(); ctx.moveTo(s * ex - 10, ey); ctx.quadraticCurveTo(s * ex, ey + 6, s * ex + 10, ey); ctx.stroke();
     }
@@ -823,7 +835,7 @@ function fitCanvas(c, ctx){
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   return [w, h];
 }
-function drawRoom(w, h, gy){
+function drawRoom(w, h, gy, night){
   hx.fillStyle = C.wall; hx.fillRect(0, 0, w, gy);
   hx.fillStyle = C.wall2;
   for (let yy = 14, r = 0; yy < gy - 8; yy += 24, r++){
@@ -834,7 +846,7 @@ function drawRoom(w, h, gy){
   hx.fillStyle = C.winframe; rrect(hx, wx - 5, wy - 5, ww + 10, wh + 10, 10); hx.fill();
   hx.fillStyle = C.win; rrect(hx, wx, wy, ww, wh, 6); hx.fill();
   hx.save(); rrect(hx, wx, wy, ww, wh, 6); hx.clip();
-  if (isDark()){
+  if (night || isDark()){
     ell(hx, wx + ww * .3, wy + wh * .3, ww * .14, ww * .14); hx.fillStyle = '#FFF3C4'; hx.fill();
     hx.fillStyle = '#FFFFFF';
     for (const [a, b] of [[.7,.25],[.8,.7],[.25,.75]]){ star(hx, wx + ww * a, wy + wh * b, ww * .05, 4, .4); hx.fill(); }
@@ -948,10 +960,53 @@ function drawCrack(cx, cy, u, p){
   }
   hx.stroke();
 }
+function drawSleep(w, h, fy, t){
+  const u = h * .46, bx = w / 2;
+  hx.fillStyle = 'rgba(20,24,70,.38)'; hx.fillRect(0, 0, w, h);
+  hx.lineWidth = 2.5;
+  rrect(hx, bx - u * .8, fy - u * 1.0, u * 1.6, u * .8, [28, 28, 6, 6]);
+  hx.fillStyle = '#F7C6D9'; hx.fill(); hx.strokeStyle = '#B5577A'; hx.stroke();
+  hx.fillStyle = '#FF9DB8';
+  for (const s of [-1, 1]){ heart(hx, bx + s * u * .55, fy - u * .82, u * .06); hx.fill(); }
+  ell(hx, bx, fy - u * .6, u * .5, u * .17); hx.fillStyle = '#FFFFFF'; hx.fill(); hx.strokeStyle = '#B9AEDC'; hx.stroke();
+  const breath = Math.sin(t * 1.6) * u * .012;
+  drawCreature(hx, S.stage, bx, fy - u * .16 + breath, u, .5, {happy:80, sleep:true, line:S.line, shadow:false});
+  const top = fy - u * .36, x0 = bx - u * .82, x1 = bx + u * .82, n = 7;
+  hx.beginPath(); hx.moveTo(x0, fy + 4); hx.lineTo(x0, top + u * .05);
+  for (let i = 0; i < n; i++){
+    const xa = x0 + (x1 - x0) * i / n, xb = x0 + (x1 - x0) * (i + 1) / n;
+    hx.quadraticCurveTo((xa + xb) / 2, top - u * .07 + Math.sin(t * 1.6 + i) * 1.5, xb, top + u * .05);
+  }
+  hx.lineTo(x1, fy + 4); hx.closePath();
+  hx.fillStyle = '#E9E2FF'; hx.fill(); hx.strokeStyle = '#9A8CD0'; hx.lineWidth = 2.5; hx.stroke();
+  hx.fillStyle = '#FFFFFF';
+  for (let i = 0; i < 9; i++){
+    ell(hx, x0 + u * .15 + (i % 5) * u * .33 + (i > 4 ? u * .16 : 0), top + u * (i > 4 ? .27 : .14), u * .035, u * .035); hx.fill();
+  }
+  for (const s of [-1, 1]){ rrect(hx, bx + s * u * .72 - 5, fy + 2, 10, 10, 3); hx.fillStyle = '#B5577A'; hx.fill(); }
+  hx.save(); hx.textAlign = 'center'; hx.lineJoin = 'round';
+  for (let i = 0; i < 3; i++){
+    const d = (t * .35 + i / 3) % 1;
+    hx.font = `800 ${Math.round(u * (.09 + d * .08))}px ${FONT}`;
+    const zx = bx + u * .35 + d * u * .35, zy = fy - u * .85 - d * u * .45;
+    hx.lineWidth = 4; hx.strokeStyle = '#FFFFFF'; hx.strokeText('Z', zx, zy);
+    hx.fillStyle = '#6C7BD9'; hx.fillText('Z', zx, zy);
+  }
+  hx.restore();
+  const now = performance.now() / 1000;
+  hx.textAlign = 'center'; hx.font = `800 ${Math.round(h * .06)}px ${FONT}`;
+  hx.lineWidth = 4; hx.strokeStyle = C.lcd; hx.lineJoin = 'round';
+  for (let i = effects.length - 1; i >= 0; i--){
+    const e = effects[i], age = now - e.born;
+    if (age > 1.6){ effects.splice(i, 1); continue; }
+    const ty = fy - u * 1.15 - age * 20;
+    hx.strokeText(e.text, bx - u * .3, ty); hx.fillStyle = C.ink; hx.fillText(e.text, bx - u * .3, ty);
+  }
+}
 function drawHome(t){
   const [w, h] = fitCanvas(hc, hx);
   const gy = h * .7, fy = gy + (h - gy) * .56;
-  drawRoom(w, h, gy);
+  drawRoom(w, h, gy, S.stage > 0 && !S.dead && isSleep(Date.now()));
 
   if (S.dead){
     const cx = w / 2, gw = h * .28, gh = h * .4;
@@ -975,11 +1030,12 @@ function drawHome(t){
   }
 
   const u = h * .46;
+  if (S.stage > 0 && !act && isSleep(Date.now())){ drawSleep(w, h, fy, t); return; }
   let A = act, p = 0;
   if (A){ p = (t - A.t0) / A.dur; if (p >= 1){ if (A.endText) fx(A.endText); act = A = null; p = 0; } }
   const dt = Math.min(.1, Math.max(0, t - homeT)); homeT = t;
   let tx = w / 2 + (S.stage > 0 && !A ? Math.sin(t * .45) * w * .12 : 0);
-  if (A && (A.type === 'toilet' || A.type === 'bath')) tx = w / 2;
+  if (A && (A.type === 'toilet' || A.type === 'bath' || A.type === 'depart')) tx = w / 2;
   if (homeX == null) homeX = tx;
   homeX += (tx - homeX) * Math.min(1, dt * 3);
   const shake = (S.stage > 0 && S.toilet < 25 && !A) || (A && A.type === 'toilet' && p > .3 && p < .62);
@@ -1004,6 +1060,15 @@ function drawHome(t){
     drawRays(cx, fy - u * .45, w, t, p);
     const q = p / .75, showOld = q < 1 && Math.sin(q * q * 70) > 0;
     drawCreature(hx, showOld ? A.from : S.stage, cx, cyy, u, t, {...mood, line: showOld ? A.fromLine : S.line});
+  } else if (A && A.type === 'depart'){
+    if (p < .6){
+      drawRays(cx, fy - u * .45, w, t, p);
+      drawCreature(hx, 4, cx, fy - Math.pow(p / .6, 2) * h * 1.2, u, t, {happy:80, line: A.fromLine});
+    } else {
+      const q = Math.min(1, (p - .6) / .25);
+      const bounce = q >= 1 ? Math.abs(Math.sin((p - .85) * 30)) * Math.max(0, 1 - (p - .85) / .1) * h * .03 : 0;
+      drawCreature(hx, 0, cx, q < 1 ? fy - Math.pow(1 - q, 2) * h * .9 : fy - bounce, u, t, {wobble: .8});
+    }
   } else if (A && A.type === 'hatch' && p < .65){
     drawCreature(hx, 0, cx, cyy, u, t * 1.8, {wobble: 2.4});
     drawCrack(cx, fy - u * .33, u, p);
@@ -1087,6 +1152,7 @@ function toast(msg){
 function bubbleText(){
   if (S.dead) return `${S.gen}代目の${spName()}は、お空へ旅立った…`;
   if (S.stage === 0) return 'たまごをタップしてみよう';
+  if (isSleep(Date.now())) return 'すやすや眠っている…(朝6時に起きます)';
   if (S.toilet < 25) return 'もじもじしている…';
   if (S.bath < 25) return 'なんだか、においがする…';
   if (S.hunger < 30) return 'おなかがすいたみたい';
@@ -1104,8 +1170,9 @@ function renderUI(){
   }
   $('#bubble').textContent = bubbleText();
   $('#restart').hidden = !S.dead;
+  $('#trialBtn').hidden = S.dead || S.stage !== 4;
   hc.style.cursor = S.dead ? '' : 'pointer';
-  const locked = S.dead || S.stage === 0;
+  const locked = S.dead || S.stage === 0 || isSleep(Date.now());
   for (const b of document.querySelectorAll('.actions button')){
     if (b.dataset.act !== 'dex') b.disabled = locked;
   }
@@ -1149,7 +1216,14 @@ function renderSheet(){
   } else if (sheetKind === 'dex'){
     const all = Object.keys(SPECIES);
     $('#sheetTitle').textContent = `図鑑(${S.dex.length}/${all.length})`;
-    list.innerHTML = [1, 2, 3, 4].map(st => `<h3 class="dex-h">${STAGES[st]}</h3><div class="dex-grid">` +
+    const hall = S.hall || [];
+    const hallHtml = hall.length ? `<h3 class="dex-h">👑 殿堂入り(${hall.length})</h3>` + hall.slice().reverse().map(r => `
+      <div class="item">
+        <div class="ic">👑</div>
+        <div><div class="nm">${r.gen}代目 ${r.name}</div><div class="sub">${r.days ? `育てた日数 ${r.days}日・` : ''}ベスト ${r.best}点・${new Date(r.date).toLocaleDateString('ja-JP')}</div></div>
+        <div></div>
+      </div>`).join('') : '';
+    list.innerHTML = hallHtml + [1, 2, 3, 4].map(st => `<h3 class="dex-h">${STAGES[st]}</h3><div class="dex-grid">` +
       all.filter(k => stageOfKey(k) === st).map(k => S.dex.includes(k)
         ? `<div class="dex-cell"><canvas data-key="${k}"></canvas>${SPECIES[k]}</div>`
         : `<div class="dex-cell"><div class="dex-unknown">?</div>???</div>`).join('') + '</div>').join('');
@@ -1184,6 +1258,9 @@ function renderSheet(){
       <li>ミニゲームでまれに出る💎をあげると進化します。超生物になるには、成熟期のまま${SUPER_SCORE}点以上を出してから💎をあげます。</li>
       <li>育て方で進化先が変わります。幼少期は2種類、成熟期までに8種類に分かれます。集めた姿は図鑑で見られます。</li>
       <li>超生物はミニゲームで「暴走」が使えます。コインが3倍になりますが、暴走中にぶつかるとその回のコインが半分になります。</li>
+      <li>超生物になると「天空の試練」に挑戦できます。ゴールまでたどり着けば殿堂入りして旅立ち、新しいたまごが届きます。</li>
+      <li>23時〜朝6時は睡眠時間です。お世話やミニゲームはできませんが、その間は空腹度なども減りません。</li>
+      <li>ミニゲームをすると、空腹度と幸福度が${RUN_COST}%ずつ下がり、からだも汚れます。</li>
       <li>時間は、このページを閉じていても進みます。</li>
       <li>右上の⚙から、効果音とセリフの読み上げのオン・オフを切り替えられます。</li>
     </ul>`;
@@ -1240,12 +1317,14 @@ document.querySelector('.actions').addEventListener('click', e => {
   else if (a === 'toilet'){ startAct('toilet', 2.6, {poops: S.poops, endText:'すっきり!'}); sfx('toilet'); S.toilet = 100; S.zero.toilet = null; S.poops = 0; }
   else if (a === 'bath'){ startAct('bath', 2.8, {endText:'ぴかぴか!'}); sfx('bath'); S.bath = 100; S.zero.bath = null; }
   else if (a === 'run') startRun();
+  else if (a === 'trial') startRun(true);
   renderUI(); save();
 });
 $('#home').addEventListener('click', () => {
   if (S.dead) return;
-  if (S.stage !== 0){ speak(); return; }
-  S.stage = 1; S.hunger = 70; S.happy = 70; S.sim = Date.now();
+  if (act && act.type === 'depart') return;
+  if (S.stage !== 0){ if (isSleep(Date.now())) fx('すやすや…'); else speak(); return; }
+  S.stage = 1; S.hunger = 70; S.happy = 70; S.sim = Date.now(); S.bornAt = Date.now();
   S.line = {base: Math.random() < .5 ? 'A' : 'B', g:null, m:null};
   S.care = {food:0, toy:0, miss:0}; addDex();
   startAct('hatch', 1.6, {endText:'うまれた!'}); sfx('hatch');
@@ -1255,18 +1334,20 @@ $('#home').addEventListener('click', () => {
 $('#restart').addEventListener('click', () => { S = newState(S); renderUI(); save(); toast('新しいたまごをもらった'); });
 
 /* ---------- ミニゲーム ---------- */
-const LEN = 600, BONUS_DIST = 480, BONUS_SCORE = 1000, D = 6, GAUGE_MAX = 15, BOOST_SEC = 5;
+let LEN = 600;
+const RUN_COST = 15; // ミニゲーム1回ごとに下がる空腹度・幸福度
+const BONUS_DIST = 480, BONUS_SCORE = 1000, D = 6, GAUGE_MAX = 15, BOOST_SEC = 5;
 const gc = $('#run'), gx = gc.getContext('2d');
 let R = null;
 
-function makeCourse(){
+function makeCourse(trial){
   const objs = [];
   const EVO_RATE = [.15, .25, .4, .55, .75, 1]; // 出なかった回数ごとの出現率
-  let evoAt = Math.random() < EVO_RATE[Math.min(S.evoMiss || 0, 5)] ? 300 + Math.random() * 240 : -1;
+  let evoAt = !trial && Math.random() < EVO_RATE[Math.min(S.evoMiss || 0, 5)] ? 300 + Math.random() * 240 : -1;
   let d = 30;
   while (d < LEN - 15){
     const lanes = [0,1,2].sort(() => Math.random() - .5);
-    const n = Math.random() < .35 + d / LEN * .25 ? 2 : 1;
+    const n = Math.random() < (trial ? .55 : .35) + d / LEN * (trial ? .2 : .25) ? 2 : 1;
     const blocked = lanes.slice(0, n), free = lanes.slice(n);
     for (const l of blocked) objs.push({type:'rock', lane:l, z:d});
     const cl = free[Math.floor(Math.random() * free.length)];
@@ -1274,19 +1355,30 @@ function makeCourse(){
     if (evoAt > 0 && d >= evoAt){
       objs.push({type:'evo', lane:free[free.length - 1], z:d + 4}); evoAt = -1;
     }
-    d += 10 + Math.random() * 5 - d / LEN * 3;
+    d += (trial ? 6.5 + Math.random() * 3 : 10 + Math.random() * 5) - d / LEN * 3;
   }
   return objs;
 }
-function startRun(){
-  if (S.dead || S.stage === 0) return;
+function startRun(trial = false){
+  if (S.dead || S.stage === 0 || isSleep(Date.now()) || (trial && S.stage !== 4)) return;
   closeSheet();
-  R = {dist:0, prev:0, speed:9, lane:1, laneX:1, coins:0, objs:makeCourse(), state:'count', countT:3,
-       gauge:0, boost:0, item:false, halved:false};
+  LEN = trial ? 800 : 600;
+  R = {dist:0, prev:0, speed:9, lane:1, laneX:1, coins:0, objs:makeCourse(trial), state:'count', countT:3,
+       gauge:0, boost:0, item:false, halved:false, trial};
   $('#game').hidden = false; $('#overlay').hidden = true;
   $('#ability').hidden = S.stage !== 4;
   updateHud();
-  sfx('count');
+  if (trial){
+    R.state = 'intro';
+    const ov = $('#overlay');
+    ov.innerHTML = `<div class="card"><h2>👑 天空の試練</h2>
+      <p>ゴールすることで殿堂入りを目指す。殿堂入りすると天空に住むことになり、新しい卵を手に入れることができる。</p>
+      <p class="note-s">障害物にぶつかると失敗です。何度でも挑戦できます。</p>
+      <button id="go">挑戦する</button> <button id="cancel" class="alt">やめる</button></div>`;
+    ov.hidden = false;
+    $('#go').addEventListener('click', () => { ov.hidden = true; R.state = 'count'; sfx('count'); }, {once:true});
+    $('#cancel').addEventListener('click', () => { ov.hidden = true; $('#game').hidden = true; R = null; renderUI(); }, {once:true});
+  } else sfx('count');
 }
 function move(dir){
   if (!R || (R.state !== 'run' && R.state !== 'count')) return;
@@ -1316,7 +1408,7 @@ function updateRun(dt){
   }
   R.laneX += (R.lane - R.laneX) * Math.min(1, dt * 14);
   if (R.state !== 'run') return;
-  R.speed = 9 + R.dist / LEN * 5;
+  R.speed = (R.trial ? 12 : 9) + R.dist / LEN * (R.trial ? 6 : 5);
   const sp = R.speed * (R.boost > 0 ? 1.6 : 1);
   R.prev = R.dist; R.dist += sp * dt;
   if (R.boost > 0) R.boost = Math.max(0, R.boost - dt);
@@ -1359,8 +1451,12 @@ function finish(goal){
   S.coins += R.coins;
   if (R.item) S.inv.evo = (S.inv.evo || 0) + 1;
   const appeared = R.objs.some(o => o.type === 'evo' && (o.done || o.z <= R.dist));
-  S.evoMiss = appeared ? 0 : (S.evoMiss || 0) + 1;
-  S.hunger = clamp(S.hunger - 5); S.happy = clamp(S.happy + 5);
+  if (!R.trial) S.evoMiss = appeared ? 0 : (S.evoMiss || 0) + 1;
+  for (const k of ['hunger', 'happy', 'bath']){
+    const before = S[k];
+    S[k] = clamp(S[k] - RUN_COST);
+    if (before > 0 && S[k] <= 0) S.care.miss++;
+  }
   S.best = Math.max(S.best, score);
   let superMsg = '';
   if (S.stage === 3){
@@ -1369,6 +1465,14 @@ function finish(goal){
   }
   save(); updateHud();
   const ov = $('#overlay');
+  if (R.trial){
+    ov.innerHTML = goal
+      ? `<div class="card"><h2>試練クリア!</h2><p class="big">👑</p><p>${spName()}は天空の試練を乗りこえた!</p><p>🪙 ${R.coins} を手に入れた</p><button id="back">殿堂入りする</button></div>`
+      : `<div class="card"><h2>試練失敗…</h2><p>${Math.floor(Math.min(R.dist, LEN))}m / ${LEN}m</p><p>🪙 ${R.coins} を手に入れた</p><p>何度でも挑戦できます</p><button id="back">もどる</button></div>`;
+    ov.hidden = false;
+    $('#back').addEventListener('click', () => { $('#game').hidden = true; R = null; if (goal) enshrine(); renderUI(); }, {once:true});
+    return;
+  }
   ov.innerHTML = `<div class="card">
     <h2>${goal ? 'ゴール!' : 'ぶつかった!'}</h2>
     <p class="big">🪙 ${R.coins}</p>
@@ -1380,27 +1484,43 @@ function finish(goal){
   ov.hidden = false;
   $('#back').addEventListener('click', () => { $('#game').hidden = true; R = null; renderUI(); }, {once:true});
 }
+function enshrine(){
+  const name = spName(), fromLine = {...S.line};
+  S.hall = S.hall || [];
+  S.hall.push({key: keyOf(S.stage, S.line), name, gen: S.gen,
+    days: S.bornAt ? Math.max(1, Math.ceil((Date.now() - S.bornAt) / 86400000)) : null,
+    best: S.best, date: Date.now()});
+  S = newState(S);
+  startAct('depart', 4.2, {fromLine, endText:'新しいたまご!'});
+  sfx('evolve');
+  setTimeout(() => toast(`${name}は殿堂入りして、天空で暮らすことになった!`), 300);
+  setTimeout(() => toast('新しいたまごが届いた!'), 3200);
+  save();
+}
 function drawRun(t){
   const [w, h] = fitCanvas(gc, gx);
   const cx = w / 2, hz = h * .32, gy = h * .84, lw = Math.min(w * .27, 150);
   const proj = (lo, rel) => { const s = D / (D + Math.max(rel, -D * .6)); return [cx + lo * lw * s, hz + (gy - hz) * s, s]; };
+  const TH = R.trial
+    ? {sky1:'#3B2A7A', sky2:'#FF9E7A', hill:'#7A64C8', g1:'#F3EEFF', g2:'#E4DAFF', road:'#FFD86B', edge:'#D9A520', rock:'#5B3F9E', rockS:'#3E2875', rockH:'#A98BFF', rockL:'#21163F'}
+    : {sky1:'#6EC3FF', sky2:'#D3EEFF', hill:'#6DBB6E', g1:'#8FD47E', g2:'#82C972', road:'#EBCB94', edge:'#C99B5E', rock:'#A3A0B2', rockS:'#7A7790', rockH:'#D4D1DE', rockL:'#4A4660'};
 
   // 空・雲・丘
   const sky = gx.createLinearGradient(0, 0, 0, hz);
-  sky.addColorStop(0, '#6EC3FF'); sky.addColorStop(1, '#D3EEFF');
+  sky.addColorStop(0, TH.sky1); sky.addColorStop(1, TH.sky2);
   gx.fillStyle = sky; gx.fillRect(0, 0, w, hz);
   gx.fillStyle = 'rgba(255,255,255,.92)';
   for (let i = 0; i < 3; i++){
     const x = ((i * w * .42 + t * 12 + 40) % (w + 140)) - 70, y = hz * (.4 + i * .17);
     for (const [dx, dy, r] of [[-18, 0, 14], [0, -8, 19], [19, 0, 14]]){ ell(gx, x + dx, y + dy, r, r * .8); gx.fill(); }
   }
-  gx.fillStyle = '#6DBB6E'; gx.beginPath(); gx.moveTo(0, hz + 1);
+  gx.fillStyle = TH.hill; gx.beginPath(); gx.moveTo(0, hz + 1);
   for (let x = 0; x <= w; x += 8) gx.lineTo(x, hz - 12 - Math.sin(x * .018 + 1) * 10 - Math.sin(x * .05) * 4);
   gx.lineTo(w, hz + 1); gx.closePath(); gx.fill();
 
   // 草地(しま模様が流れる)
-  gx.fillStyle = '#8FD47E'; gx.fillRect(0, hz, w, h - hz);
-  gx.fillStyle = '#82C972';
+  gx.fillStyle = TH.g1; gx.fillRect(0, hz, w, h - hz);
+  gx.fillStyle = TH.g2;
   for (let k = 0; k < 40; k += 2){
     const z0 = k * 6 - (R.dist % 12);
     if (z0 + 6 < -3) continue;
@@ -1409,9 +1529,9 @@ function drawRun(t){
   }
   // 道
   const [ax, ay] = proj(-1.55, 140), [bx] = proj(1.55, 140), [cx2, cy2] = proj(-1.55, -3), [dx2] = proj(1.55, -3);
-  gx.fillStyle = '#EBCB94';
+  gx.fillStyle = TH.road;
   gx.beginPath(); gx.moveTo(ax, ay); gx.lineTo(bx, ay); gx.lineTo(dx2, cy2); gx.lineTo(cx2, cy2); gx.closePath(); gx.fill();
-  gx.strokeStyle = '#C99B5E'; gx.lineWidth = 4;
+  gx.strokeStyle = TH.edge; gx.lineWidth = 4;
   gx.beginPath(); gx.moveTo(ax, ay); gx.lineTo(cx2, cy2); gx.moveTo(bx, ay); gx.lineTo(dx2, cy2); gx.stroke();
   gx.strokeStyle = 'rgba(255,255,255,.85)';
   const off = R.dist % 4;
@@ -1450,11 +1570,11 @@ function drawRun(t){
         gx.lineTo(x + bw * .3, y - bh * .85); gx.lineTo(x + bw / 2, y - bh * .3); gx.lineTo(x + bw / 2, y); gx.closePath();
       };
       ell(gx, x, y, bw * .6, bh * .12); gx.fillStyle = 'rgba(30,20,50,.18)'; gx.fill();
-      path(); gx.fillStyle = '#A3A0B2'; gx.fill();
-      gx.save(); path(); gx.clip(); gx.fillStyle = '#7A7790'; gx.fillRect(x + bw * .05, y - bh, bw, bh); gx.restore();
-      gx.strokeStyle = '#D4D1DE'; gx.lineWidth = lwid * 1.3;
+      path(); gx.fillStyle = TH.rock; gx.fill();
+      gx.save(); path(); gx.clip(); gx.fillStyle = TH.rockS; gx.fillRect(x + bw * .05, y - bh, bw, bh); gx.restore();
+      gx.strokeStyle = TH.rockH; gx.lineWidth = lwid * 1.3;
       gx.beginPath(); gx.moveTo(x - bw * .3, y - bh * .7); gx.lineTo(x - bw * .08, y - bh * .88); gx.stroke();
-      path(); gx.strokeStyle = '#4A4660'; gx.lineWidth = lwid; gx.stroke();
+      path(); gx.strokeStyle = TH.rockL; gx.lineWidth = lwid; gx.stroke();
     } else if (o.type === 'coin'){
       const r = lw * .16 * s, cy = y - lw * .3 * s, sx = Math.max(.08, Math.abs(Math.cos(t * 4 + o.z)));
       ell(gx, x, cy, r * sx, r); gx.fillStyle = '#FFC93C'; gx.fill();
@@ -1525,7 +1645,10 @@ window.addEventListener('keydown', e => {
   else if (e.key === ' ' || e.key === 'ArrowUp'){ e.preventDefault(); activate(); }
 });
 $('#ability').addEventListener('click', activate);
-$('#quit').addEventListener('click', () => { if (R && R.state !== 'end') finish(false); });
+$('#quit').addEventListener('click', () => {
+  if (R && R.state === 'intro'){ $('#overlay').hidden = true; $('#game').hidden = true; R = null; renderUI(); return; }
+  if (R && R.state !== 'end') finish(false);
+});
 
 /* ---------- ループ ---------- */
 let last = performance.now() / 1000;
