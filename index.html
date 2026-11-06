@@ -127,6 +127,12 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .dex-cell{text-align:center;font-size:.7rem;line-height:1.3}
 .dex-cell canvas,.dex-unknown{display:block;width:100%;aspect-ratio:1;border-radius:10px;background:var(--lcd);margin-bottom:4px}
 .dex-unknown{display:flex;align-items:center;justify-content:center;color:var(--ink-soft);font-size:1.6rem}
+button.dex-cell{background:none;border:none;padding:0;color:inherit;font:inherit;font-size:.7rem;width:100%}
+.dex-big{display:block;width:100%;max-width:260px;aspect-ratio:1;margin:6px auto 14px;border-radius:18px}
+.prof{display:grid;grid-template-columns:6.5em 1fr;gap:10px 12px;margin:0 0 16px;font-size:.95rem;line-height:1.5}
+.prof dt{opacity:.7}
+.prof dd{margin:0}
+.back-dex{display:block;margin:0 auto;background:var(--shell);color:#fff;border:none;border-radius:10px;padding:8px 20px}
 
 .game{position:fixed;inset:0;background:#8FD47E;touch-action:none;z-index:40;user-select:none;-webkit-user-select:none}
 #run{width:100%;height:100%;display:block}
@@ -247,13 +253,55 @@ const RECOVER = {1:[50,100,100], 2:[35,70,100], 3:[20,45,80], 4:[15,35,65]};
 const TIER = ['小','中','大'];
 const clamp = (v, a=0, b=100) => Math.max(a, Math.min(b, v));
 const SPECIES = {
-  'A':'ぷにまる', 'B':'しずくん',
-  'A-chubby':'もちまる', 'A-ears':'うさまる', 'B-chubby':'ぽてしずく', 'B-ears':'みみしずく',
+  'A':'ぷにまる', 'B':'しずくん', 'C':'はっぱん',
+  'A-chubby':'もちまる', 'A-ears':'うさまる', 'B-chubby':'ぽてしずく', 'B-ears':'みみしずく', 'C-chubby':'まめたん', 'C-ears':'はなみみ',
   'A-chubby-calm':'おもちさま', 'A-chubby-wild':'どすこいもち', 'A-ears-calm':'つきうさ', 'A-ears-wild':'あばれうさ',
   'B-chubby-calm':'ゆめしずく', 'B-chubby-wild':'どろしずく', 'B-ears-calm':'かぜみみ', 'B-ears-wild':'いかずちみみ',
+  'C-chubby-calm':'もりのぬし', 'C-chubby-wild':'いばらまめ', 'C-ears-calm':'さくらみみ', 'C-ears-wild':'どくばなみみ',
   'A-chubby-calm-S':'てんしょうもち', 'A-chubby-wild-S':'ばくえんもち', 'A-ears-calm-S':'げっこううさ', 'A-ears-wild-S':'らいじんうさ',
   'B-chubby-calm-S':'せいれいしずく', 'B-chubby-wild-S':'まりゅうしずく', 'B-ears-calm-S':'てんくうみみ', 'B-ears-wild-S':'らいていみみ',
+  'C-chubby-calm-S':'せかいじゅ', 'C-chubby-wild-S':'じゃんぐるおう', 'C-ears-calm-S':'はなのめがみ', 'C-ears-wild-S':'まかいばな',
 };
+// 図鑑データ [身長, 体重, すきなもの, きらいなもの]
+const PROFILE = {
+  'A':['18cm','0.6kg','ひなたぼっこ','大きな音'], 'B':['16cm','0.4kg','雨の日','知らない人'], 'C':['15cm','0.3kg','お水やり','日かげ'],
+  'A-chubby':['32cm','4.2kg','おもち','早起き'], 'A-ears':['40cm','2.1kg','かけっこ','じっとすること'],
+  'B-chubby':['30cm','3.8kg','おひるね','階段'], 'B-ears':['38cm','1.6kg','ないしょ話','耳そうじ'],
+  'C-chubby':['28cm','2.9kg','豆まき','鬼'], 'C-ears':['36cm','1.4kg','花かんむり','虫'],
+  'A-chubby-calm':['58cm','12kg','紅茶','下品なこと'], 'A-chubby-wild':['72cm','28kg','ちゃんこ鍋','負けること'],
+  'A-ears-calm':['70cm','5.5kg','月見','曇り空'], 'A-ears-wild':['75cm','6.8kg','バイク','説教'],
+  'B-chubby-calm':['55cm','9.5kg','夢を見ること','目覚まし時計'], 'B-chubby-wild':['60cm','15kg','どろあそび','きれいごと'],
+  'B-ears-calm':['68cm','4.8kg','旅','無風'], 'B-ears-wild':['66cm','5.2kg','雷雨','ゴム'],
+  'C-chubby-calm':['80cm','32kg','森林浴','山火事'], 'C-chubby-wild':['62cm','18kg','ひとりの時間','ハグ'],
+  'C-ears-calm':['64cm','4.2kg','お花見','散ること'], 'C-ears-wild':['60cm','3.9kg','いたずら','正直者'],
+  'A-chubby-calm-S':['1.2m','45kg','お供えもの','争い'], 'A-chubby-wild-S':['1.5m','88kg','激辛料理','水'],
+  'A-ears-calm-S':['1.3m','9kg','満月の夜','夜明け'], 'A-ears-wild-S':['1.4m','11kg','嵐','晴天'],
+  'B-chubby-calm-S':['1.1m','20kg','澄んだ泉','汚れた水'], 'B-chubby-wild-S':['1.6m','66kg','闇','日光'],
+  'B-ears-calm-S':['1.3m','8kg','雲の上','地下'], 'B-ears-wild-S':['1.5m','12kg','頂点','二番手'],
+  'C-chubby-calm-S':['3.0m','300kg','すべての命','伐採'], 'C-chubby-wild-S':['1.8m','120kg','密林','都会'],
+  'C-ears-calm-S':['1.4m','10kg','春','冬'], 'C-ears-wild-S':['1.5m','13kg','毒の沼','お日さま'],
+};
+// 進化アイテム(かけら)
+const ITEMS = {
+  r:{id:'evoR', ic:'🔥', name:'ちからのかけら', color:'#E5484D', light:'#FFC0C2', line:'#7A1E22'},
+  b:{id:'evoB', ic:'💧', name:'こころのかけら', color:'#2F6FE0', light:'#BFE0FF', line:'#1C3E8A'},
+  s:{id:'evoS', ic:'⭐', name:'てんのかけら', color:'#F5C542', light:'#FFF0B0', line:'#8A6200'},
+};
+function canEvolve(kind){
+  if (S.dead || (S.inv[ITEMS[kind].id] || 0) < 1) return false;
+  if (S.stage === 1 || S.stage === 2) return kind !== 's';
+  if (S.stage === 3) return kind === 's' && S.superReady;
+  return false;
+}
+function evoCondText(key){
+  const st = key.split('-').length, p = key.split('-'), l = {base:p[0], g:p[1] || null, m:p[2] || null};
+  if (st === 1) return 'たまごからランダムで誕生';
+  const parent = SPECIES[p.slice(0, -1).join('-')];
+  const label = kind => `${ITEMS[kind].ic}${ITEMS[kind].name}`;
+  if (st === 2) return `${parent}に${label(l.g === 'chubby' ? 'r' : 'b')}をあげる`;
+  if (st === 3) return `${parent}に${label(l.m === 'wild' ? 'r' : 'b')}をあげる`;
+  return `${parent}のままミニゲームで1回${SUPER_SCORE}点以上を出し、${label('s')}をあげる`;
+}
 function keyOf(stage, line){
   if (!line || stage === 0) return null;
   const p = [line.base];
@@ -314,6 +362,28 @@ const TALK = {
     '王子でも、空腹には勝てないのさ…','ぼくを退屈させるなんて、罪だね','ちょっと…失礼するよ。','王子は、いつも清潔でいたいんだ'),
   'B-ears-wild-S': T(['雷帝の名のもとに、ひれ伏せ!ビリッ!','我が雷鳴、世界にとどろく!','頂点に立つ者は、孤独ではない。おまえがいる。','全力で生きろ!それが帝の命令だ!','この雷で、未来を切りひらく!','フッ…今日も絶好調だビリ!','我と並び立つ覚悟はあるか!','雷は、一瞬で永遠を照らす!'],
     '帝の腹が、鳴っておる…!','帝は、退屈を許さぬ!','…帝とて、厠は必要だ!急げ!','雷帝の湯浴み、ただちに用意せよ!'),
+  'C': T(['こんにちはっぱ!','お水、おいしいっぱ〜','おひさま、だいすきっぱ','すくすく、のびるっぱ!','はっぱ、ゆれてるっぱ?','なでなでで、ぐんぐん育つっぱ','かぜがきもちいいっぱ〜','ねっこ、生えてきたかもっぱ'],
+    'おなか、しおしお…っぱ','しおれちゃうっぱ…','はっ、はっぱ…トイレっぱ!','はっぱに、ほこりがついたっぱ…'),
+  'C-chubby': T(['まめまめ!元気まめ!','ころころ転がるの、得意まめ','豆は畑のお肉まめ!','鬼はー外!…ちょっとこわいまめ','ぎゅっとつまってるまめ!','まめにお世話してくれてありがとまめ','ぽりぽり、いい音まめ','大きくなったら、なにになるまめ?'],
+    'おなかぺこぺこまめ〜!','ひまでふやけちゃうまめ…','まめっ!トイレまめ!','どろんこまめ…あらってほしいまめ'),
+  'C-ears': T(['きょうのお花、どう?はな','花かんむり、つくってあげるはな♪','いい香りでしょ?はな','耳にお花、かわいいでしょはな','ちょうちょと、おともだちはな','おしゃれは、毎日のたのしみはな','きみにも、お花をあげるはな','つぼみが、もうすぐ咲くはな'],
+    'おなかすいて、しおれそうはな…','たいくつで、花びら散りそうはな…','ちょ、ちょっと…トイレはな!','お花の香りのお風呂がいいはな…'),
+  'C-chubby-calm': T(['ほっほっほ、よう来たのう','森は、なんでも知っておるのう','急がば回れ、じゃのう','わしの背中で、小鳥が休んでおる','木の実でも、食べるかのう','年輪は、生きた証じゃのう','ゆっくり育つものほど、強いのう','おぬし、いい顔になったのう'],
+    '腹が、へったのう…','森が、静かすぎるのう…','ちと、厠(かわや)へ行ってくるかのう','雨にでも、打たれたいのう…'),
+  'C-chubby-wild': T(['…さわるな。トゲが刺さるぞ','べつに、さびしくなんかない','オレのトゲは、守るためにある','近づきすぎるなよ…','…まぁ、少しなら話してやる','フン、やさしくされるのは苦手だ','トゲがあるのは、生きてるからだ','…今日は、トゲ、引っこめといてやる'],
+    '…腹へった。早くしろ','…ひまだ。べつに遊べとは言ってない','…トイレ。トゲに気をつけろ','…トゲの間にほこりがたまった'),
+  'C-ears-calm': T(['おこしやす〜','はんなり、まいりましょ','桜の季節が、いちばん好きどす','お茶でも、いかがどす?','散る花も、また美しおす','うちの耳、桜色でっしゃろ?','のんびり、いきまひょ','おおきに、うれしおす'],
+    'おなか、すきましたえ…','たいくつどすなぁ…','ちょっと、はばかりへ…','お湯に、桜を浮かべとくれやす'),
+  'C-ears-wild': T(['うふふ…あまい香りでしょ?','近づくと、しびれちゃうかも♪','いたずら、だーいすき!','あたしの花粉、くしゃみ注意よ','きれいな花には、毒があるの','ねぇ、だまされてみる?','うそうそ、毒なんてないわ…たぶん','あなたのこと、気に入っちゃった'],
+    'おなかすいた〜。毒味してあげよっか?','ひま〜。いたずらしちゃうわよ?','ちょっと失礼♪ のぞいたら毒よ','お風呂!花びらは浮かべてね'),
+  'C-chubby-calm-S': T(['われは、世界を支える樹である','すべての命は、根でつながっておる','千年の時も、われには一瞬である','葉ずれの音は、世界の呼吸である','そなたの世話は、大地に届いておる','実りは、待つ者のもとに来る','枝の先まで、光に満ちておる','小さき者よ、よく育ててくれた'],
+    '大地の恵みが、足りぬ…','世界が、少し退屈である…','…しばし、根を休めてくる','恵みの雨を、所望する'),
+  'C-chubby-wild-S': T(['ウオオー!オレ、ジャングルの王!','オレ、森、マモル!','ツタでブラーン!たのしい!','オマエ、ナカマ!','つよいヤツ、ダイスキ!','ジャングル、オレのイエ!','バナナ、ウマイ!','オレのさけび、森じゅうにひびく!'],
+    'ハラ、ヘッタ!メシ!','ヒマ!オレ、あばれる!','オレ、トイレ、イク!','カワで、あらいたい!'),
+  'C-ears-calm-S': T(['あなたに、花の祝福を','春は、いつでもここにあるのよ','つぼみも、いつか必ず咲くわ','やさしさは、花のように広がるの','あなたの笑顔が、いちばんの花ね','季節がめぐっても、そばにいるわ','ひとつひとつの命が、愛おしいの','さあ、花道を歩きましょう'],
+    '少し、おなかがすいたわね','ちょっぴり、さびしいわ…','ごめんなさい、少しはずすわね','花の湯に、つかりたいわ'),
+  'C-ears-wild-S': T(['クフフ…魔界の花が咲いたわ','わたしの香りに、酔いしれなさい','毒も蜜も、使いようよ','この世界も、わたしの花壇にしてあげる','クフフ…怖がらなくていいのよ','あなたは特別。枯らさないであげる','闇夜にこそ、花は美しく咲くの','ひざまずきなさい。…なんてね'],
+    '魔力が…足りないわ…','退屈ね…何か壊そうかしら','…少し、魔界へ戻るわ','毒の沼でもいいから、浸かりたいわ'),
 };
 let lastLine = '', speechTimer = 0, talkT = -9;
 function speak(){
@@ -396,6 +466,8 @@ const VOICE_OVR = {
   'A-ears-calm':{rate:.8}, 'B-chubby-wild':{rate:.9},
   'A-chubby-calm-S':{pitch:.7, rate:.85}, 'A-chubby-wild-S':{pitch:.5}, 'A-ears-calm-S':{pitch:1.25, rate:.85},
   'B-chubby-wild-S':{pitch:.5, rate:.9}, 'B-ears-wild-S':{pitch:.6},
+  'C-chubby-calm':{pitch:.6, rate:.85}, 'C-ears-calm':{rate:.85}, 'C-ears-wild':{pitch:1.4},
+  'C-chubby-calm-S':{pitch:.55, rate:.8}, 'C-chubby-wild-S':{pitch:.5}, 'C-ears-calm-S':{pitch:1.3, rate:.85},
 };
 function voiceFor(key){
   const st = stageOfKey(key), l = lineOf(key);
@@ -430,7 +502,7 @@ function newState(prev){
     zero:{toilet:null, bath:null}, poops:0,
     hatchAt: now + HATCH_MS, sim: now,
     coins: prev ? prev.coins : 100,
-    inv: prev ? prev.inv : {evo:0},
+    inv: prev ? prev.inv : {evoR:0, evoB:0, evoS:0},
     superReady:false, best: prev ? prev.best : 0,
     gen: prev ? prev.gen + 1 : 1,
     line:null, care:{food:0, toy:0, miss:0},
@@ -445,6 +517,8 @@ function load(){
       const s = JSON.parse(raw);
       if (!s.care) s.care = {food:0, toy:0, miss:0};
       if (!s.dex) s.dex = [];
+      if (!s.inv) s.inv = {};
+      if (s.inv.evo){ s.inv.evoR = (s.inv.evoR || 0) + s.inv.evo; delete s.inv.evo; }
       if (!s.line && s.stage > 0) s.line = {base:'A', g: s.stage >= 2 ? 'chubby' : null, m: s.stage >= 3 ? 'calm' : null};
       return s;
     }
@@ -530,6 +604,17 @@ const PAL = {
   'B-chubby-wild-S':{body:'#4A2E6E',shade:'#351F52',belly:'#8A5FB8',inner:'#C77BFF',line:'#1A0D2B',eye:'#FF4A5A',aura1:'#B25CFF',aura2:'#6A1FC2',bg:'#E3D6F2',motif:'flames'},
   'B-ears-calm-S':{body:'#CFF3FF',shade:'#9FDCF2',belly:'#FFFFFF',inner:'#FFC9A8',line:'#2A5873',bg:'#DDF4FF',motif:'clouds'},
   'B-ears-wild-S':{body:'#FFC93C',shade:'#E8A410',belly:'#FFF0B8',inner:'#FF5A36',line:'#4A2E00',mark:'#FF5A36',markType:'bolt',aura1:'#FFE45C',aura2:'#FF9A1F',bg:'#FFF0C8',motif:'bolts'},
+  'C':{body:'#CDEB9A',shade:'#A8D06E',belly:'#F3FBE3',inner:'#FFB3B3',line:'#3F5A1E',bg:'#EAF6D8',motif:'leaves'},
+  'C-chubby':{body:'#E8D3A0',shade:'#CDB07A',belly:'#FFF5DE',inner:'#FFA8A8',line:'#5C4422',bg:'#F4ECD6',motif:'leaves'},
+  'C-ears':{body:'#FFC7DD',shade:'#F2A3C3',belly:'#FFF0F6',inner:'#FFE38A',line:'#7A3550',bg:'#FFE6F0',motif:'flowers'},
+  'C-chubby-calm':{body:'#9CCB7A',shade:'#78AD58',belly:'#E6F5D8',inner:'#FFC79E',line:'#2E4A1C',bg:'#E2F2D4',motif:'leaves'},
+  'C-chubby-wild':{body:'#7D9A4E',shade:'#5E7A36',belly:'#C9D9A6',inner:'#FF8C7A',line:'#26340F',bg:'#E0E6CC',motif:'leaves'},
+  'C-ears-calm':{body:'#FFE0EA',shade:'#F5B9CD',belly:'#FFFFFF',inner:'#FF9DBA',line:'#7A3A55',bg:'#FFEAF1',motif:'flowers'},
+  'C-ears-wild':{body:'#B76BD9',shade:'#9550B8',belly:'#EBD3F5',inner:'#7CE07A',line:'#3A1450',bg:'#EEDDF6',motif:'flowers'},
+  'C-chubby-calm-S':{body:'#7FC46A',shade:'#5DA34A',belly:'#E2F6D6',inner:'#FFD27A',line:'#1E3D14',wing:'#F2FFE8',bg:'#DFF3D2',motif:'leaves'},
+  'C-chubby-wild-S':{body:'#4E7A2E',shade:'#3A5E1F',belly:'#A8C77E',inner:'#FFB23E',line:'#142409',aura1:'#9BE15D',aura2:'#3F8F2A',bg:'#DCE6C8',motif:'leaves'},
+  'C-ears-calm-S':{body:'#FFF0F6',shade:'#F7C9DC',belly:'#FFFFFF',inner:'#FFB0CC',line:'#6E3550',wing:'#FFF6FA',bg:'#FFE8F2',motif:'flowers'},
+  'C-ears-wild-S':{body:'#6B2D8F',shade:'#4E1E6C',belly:'#B07ACF',inner:'#9BFF7A',line:'#1C0A28',eye:'#9BFF7A',aura1:'#C77BFF',aura2:'#5ACF5A',bg:'#E6D6F0',motif:'flowers'},
 };
 function pal(stage, line){
   return Object.assign({eye:'#2B2140', horn:'#FFF1D0', mark:'#F5C542', halo:'#F5C542', wing:'#FFFFFF'},
@@ -697,6 +782,22 @@ function drawCreature(ctx, stage, x, y, u, t, mood){
     }
   }
   // くせ毛(ぷにまる系)
+  // 芽(はっぱん系)
+  if (L.base === 'C'){
+    const sh = [0, 1, .9, .85, .8][stage];
+    ctx.beginPath(); ctx.moveTo(0, top + 4); ctx.quadraticCurveTo(5, top - 14 * sh, 0, top - 24 * sh);
+    ctx.strokeStyle = '#4C8A3A'; ctx.stroke();
+    for (const s of [-1, 1]){
+      ell(ctx, s * 14, top - 26 * sh, 15, 7, -s * .5); ctx.fillStyle = '#7CC66A'; ctx.fill(); ctx.strokeStyle = P.line; ctx.stroke();
+    }
+    if (ears){
+      for (let i = 0; i < 5; i++){
+        const a = i * Math.PI * 2 / 5 - Math.PI / 2;
+        ell(ctx, Math.cos(a) * 7, top - 34 * sh + Math.sin(a) * 7, 6, 6); ctx.fillStyle = P.inner; ctx.fill(); ctx.strokeStyle = P.line; ctx.lineWidth = lw * .6; ctx.stroke(); ctx.lineWidth = lw;
+      }
+      ell(ctx, 0, top - 34 * sh, 4.5, 4.5); ctx.fillStyle = '#FFE38A'; ctx.fill();
+    }
+  }
   if (L.base === 'A'){
     ctx.beginPath(); ctx.moveTo(0, top + 2);
     ctx.bezierCurveTo(8, top - 18, 26, top - 14, 20, top - 2);
@@ -812,6 +913,17 @@ function drawBackdrop(ctx, w, h, P){
           ctx.quadraticCurveTo(x - w * .07, h * (hh + .2), x, h * (hh + (i % 2) * .1));
           ctx.quadraticCurveTo(x + w * .07, h * (hh + .2), x + w * .09, h); ctx.fill();
         }
+      }
+      break;
+    case 'leaves':
+      ctx.fillStyle = '#9CD67E';
+      for (const [a, b] of spots){ ell(ctx, w * a, h * b, w * .05, w * .022, .6); ctx.fill(); }
+      break;
+    case 'flowers':
+      for (const [a, b] of spots){
+        ctx.fillStyle = '#FFB3CF';
+        for (let i = 0; i < 5; i++){ const an = i * Math.PI * 2 / 5; ell(ctx, w * a + Math.cos(an) * w * .025, h * b + Math.sin(an) * w * .025, w * .02, w * .02); ctx.fill(); }
+        ctx.fillStyle = '#FFE38A'; ell(ctx, w * a, h * b, w * .015, w * .015); ctx.fill();
       }
       break;
     case 'bolts':
@@ -1162,7 +1274,7 @@ function bubbleText(){
 function renderUI(){
   $('#coins').textContent = S.coins;
   $('#cname').textContent = spName();
-  $('#stage').textContent = S.dead ? 'おわかれ' : STAGES[S.stage] + (S.stage === 3 && S.superReady ? ((S.inv.evo || 0) > 0 ? '・超生物の条件クリア' : '・スコア達成') : '');
+  $('#stage').textContent = S.dead ? 'おわかれ' : STAGES[S.stage] + (S.stage === 3 && S.superReady ? ((S.inv.evoS || 0) > 0 ? '・超生物の条件クリア' : '・スコア達成') : '');
   for (const k of ['hunger','happy']){
     const el = $('#g-' + k); el.style.width = (S.stage === 0 ? 100 : S[k]) + '%';
     el.classList.toggle('low', S.stage > 0 && S[k] < 30);
@@ -1179,7 +1291,7 @@ function renderUI(){
 }
 
 /* ---------- シート(ごはん・おもちゃ・進化) ---------- */
-let sheetKind = null;
+let sheetKind = null, dexKey = null;
 function openSheet(kind){ sheetKind = kind; $('#sheet').hidden = false; renderSheet(); }
 function closeSheet(){ sheetKind = null; $('#sheet').hidden = true; }
 function renderSheet(){
@@ -1198,21 +1310,29 @@ function renderSheet(){
       </div>`).join('');
   } else if (sheetKind === 'evo'){
     $('#sheetTitle').textContent = '進化アイテム';
-    let note;
-    if (S.stage === 1) note = `あげると成長期に進化します。ごはんとおもちゃ、どちらを多くあげたかで姿が変わります(ごはん${S.care.food}回・おもちゃ${S.care.toy}回)。`;
-    else if (S.stage === 2) note = `あげると成熟期に進化します。お世話ミスの回数で姿が変わります(いまのミス ${S.care.miss}回)。`;
-    else if (S.stage === 3) note = S.superReady
-      ? ((S.inv.evo || 0) > 0 ? '条件クリア。あげると超生物に進化します。' : 'スコア条件は達成済みです。あとは💎があれば超生物に進化できます。')
-      : `超生物になるには、成熟期のままミニゲームで${SUPER_SCORE}点以上を出す必要があります(これまでのベスト ${S.best}点)。`;
-    else note = 'これ以上は進化しません。';
-    const can = (S.inv.evo || 0) > 0 && (S.stage <= 2 || (S.stage === 3 && S.superReady));
-    list.innerHTML = `
+    const nm = k => S.dex.includes(k) ? SPECIES[k] : '???';
+    const eff = kind => {
+      if (S.stage === 1 || S.stage === 2){
+        if (kind === 's') return '成熟期になってから使えます';
+        const ln = {...S.line};
+        if (S.stage === 1) ln.g = kind === 'r' ? 'chubby' : 'ears'; else ln.m = kind === 'r' ? 'wild' : 'calm';
+        return `${STAGES[S.stage + 1]}「${nm(keyOf(S.stage + 1, ln))}」に進化`;
+      }
+      if (S.stage === 3){
+        if (kind !== 's') return 'もう使えません';
+        return S.superReady ? `超生物「${nm(keyOf(4, S.line))}」に進化` : `成熟期のまま${SUPER_SCORE}点以上を出すと使えます(ベスト ${S.best}点)`;
+      }
+      return 'これ以上は進化しません';
+    };
+    list.innerHTML = ['r', 'b', 's'].map(kind => {
+      const it = ITEMS[kind];
+      return `
       <div class="item">
-        <div class="ic">💎</div>
-        <div><div class="nm">進化のかけら</div><div class="sub">もっている ${S.inv.evo || 0}・ミニゲームでまれに出現</div></div>
-        <div class="btns"><button data-evolve ${can ? '' : 'disabled'}>あげる</button></div>
-      </div>
-      <p class="note">${note}</p>`;
+        <div class="ic">${it.ic}</div>
+        <div><div class="nm">${it.name}</div><div class="sub">もっている ${S.inv[it.id] || 0}・${eff(kind)}</div></div>
+        <div class="btns"><button data-evolve="${kind}" ${canEvolve(kind) ? '' : 'disabled'}>あげる</button></div>
+      </div>`;
+    }).join('') + '<p class="note">かけらはミニゲームでまれに見つかります。どのかけらを使うかで、進化先が変わります。</p>';
   } else if (sheetKind === 'dex'){
     const all = Object.keys(SPECIES);
     $('#sheetTitle').textContent = `図鑑(${S.dex.length}/${all.length})`;
@@ -1225,7 +1345,7 @@ function renderSheet(){
       </div>`).join('') : '';
     list.innerHTML = hallHtml + [1, 2, 3, 4].map(st => `<h3 class="dex-h">${STAGES[st]}</h3><div class="dex-grid">` +
       all.filter(k => stageOfKey(k) === st).map(k => S.dex.includes(k)
-        ? `<div class="dex-cell"><canvas data-key="${k}"></canvas>${SPECIES[k]}</div>`
+        ? `<button class="dex-cell" data-dex="${k}"><canvas data-key="${k}"></canvas>${SPECIES[k]}</button>`
         : `<div class="dex-cell"><div class="dex-unknown">?</div>???</div>`).join('') + '</div>').join('');
     for (const c of list.querySelectorAll('canvas[data-key]')){
       const k = c.dataset.key, ctx = c.getContext('2d'), [w, h] = fitCanvas(c, ctx);
@@ -1233,6 +1353,22 @@ function renderSheet(){
       drawBackdrop(ctx, w, h, pal(st, ln));
       drawCreature(ctx, st, w / 2, h * .9, h * [0, 1.3, .85, .66, .54][st], 1, {happy:80, line:ln});
     }
+  } else if (sheetKind === 'dexd'){
+    const k = dexKey, st = stageOfKey(k), ln = lineOf(k), pr = PROFILE[k] || ['?', '?', '?', '?'];
+    $('#sheetTitle').textContent = SPECIES[k];
+    list.innerHTML = `<canvas class="dex-big" id="dexBig"></canvas>
+      <dl class="prof">
+        <dt>段階</dt><dd>${STAGES[st]}</dd>
+        <dt>身長</dt><dd>${pr[0]}</dd>
+        <dt>体重</dt><dd>${pr[1]}</dd>
+        <dt>すきなもの</dt><dd>${pr[2]}</dd>
+        <dt>きらいなもの</dt><dd>${pr[3]}</dd>
+        <dt>進化条件</dt><dd>${evoCondText(k)}</dd>
+      </dl>
+      <button class="back-dex" data-backdex="1">図鑑にもどる</button>`;
+    const c = $('#dexBig'), ctx = c.getContext('2d'), [w, h] = fitCanvas(c, ctx);
+    drawBackdrop(ctx, w, h, pal(st, ln));
+    drawCreature(ctx, st, w / 2, h * .9, h * [0, 1.3, .85, .66, .54][st], 1, {happy:80, line:ln});
   } else if (sheetKind === 'settings'){
     $('#sheetTitle').textContent = '設定';
     const canVoice = 'speechSynthesis' in window;
@@ -1255,8 +1391,8 @@ function renderSheet(){
       <li>コインはミニゲームで稼ぎます。左右にスワイプして障害物をよけましょう。ぶつかるとその場で終了ですが、集めたコインはもらえます。</li>
       <li>トイレとおふろは、ようすを見て連れて行きましょう。もじもじしたり、においがしたら合図です。</li>
       <li>トイレやおふろに長く行けないと、死んでしまうことがあります。おなかがすいていたり、たいくつしていると危険が増します。</li>
-      <li>ミニゲームでまれに出る💎をあげると進化します。超生物になるには、成熟期のまま${SUPER_SCORE}点以上を出してから💎をあげます。</li>
-      <li>育て方で進化先が変わります。幼少期は2種類、成熟期までに8種類に分かれます。集めた姿は図鑑で見られます。</li>
+      <li>ミニゲームでまれに見つかる「かけら」をあげると進化します。🔥ちからのかけらと💧こころのかけらのどちらを使うかで進化先が変わります。超生物になるには、成熟期のまま${SUPER_SCORE}点以上を出してから⭐てんのかけらをあげます。</li>
+      <li>幼少期は3種類。使うかけらによって、成熟期までに12種類に分かれます。集めた姿は図鑑で見られ、タップするとくわしいデータが見られます。</li>
       <li>超生物はミニゲームで「暴走」が使えます。コインが3倍になりますが、暴走中にぶつかるとその回のコインが半分になります。</li>
       <li>超生物になると「天空の試練」に挑戦できます。ゴールまでたどり着けば殿堂入りして旅立ち、新しいたまごが届きます。</li>
       <li>23時〜朝6時は睡眠時間です。お世話やミニゲームはできませんが、その間は空腹度なども減りません。</li>
@@ -1273,6 +1409,8 @@ $('#sheetList').addEventListener('click', e => {
     if (!SET.voice && 'speechSynthesis' in window) speechSynthesis.cancel();
     renderSheet(); return;
   }
+  if (b.dataset.dex){ dexKey = b.dataset.dex; sheetKind = 'dexd'; renderSheet(); $('.sheet-body').scrollTop = 0; return; }
+  if (b.dataset.backdex){ sheetKind = 'dex'; renderSheet(); return; }
   const all = [...FOOD, ...TOY];
   if (b.dataset.give){
     const it = all.find(i => i.id === b.dataset.give);
@@ -1286,12 +1424,13 @@ $('#sheetList').addEventListener('click', e => {
       sfx('buy'); sfx(isFood ? 'eat' : 'toy');
       closeSheet();
     }
-  } else if ('evolve' in b.dataset){
-    if ((S.inv.evo || 0) > 0 && (S.stage <= 2 || (S.stage === 3 && S.superReady))){
-      S.inv.evo--;
+  } else if (b.dataset.evolve){
+    const kind = b.dataset.evolve;
+    if (canEvolve(kind)){
+      S.inv[ITEMS[kind].id]--;
       const prevStage = S.stage, prevLine = {...S.line};
-      if (S.stage === 1) S.line.g = S.care.food > S.care.toy ? 'chubby' : 'ears';
-      if (S.stage === 2) S.line.m = S.care.miss >= 2 ? 'wild' : 'calm';
+      if (S.stage === 1) S.line.g = kind === 'r' ? 'chubby' : 'ears';
+      if (S.stage === 2) S.line.m = kind === 'r' ? 'wild' : 'calm';
       const before = spName();
       S.stage++; S.care = {food:0, toy:0, miss:0}; addDex();
       S.hunger = clamp(S.hunger + 20); S.happy = clamp(S.happy + 20);
@@ -1325,7 +1464,7 @@ $('#home').addEventListener('click', () => {
   if (act && act.type === 'depart') return;
   if (S.stage !== 0){ if (isSleep(Date.now())) fx('すやすや…'); else speak(); return; }
   S.stage = 1; S.hunger = 70; S.happy = 70; S.sim = Date.now(); S.bornAt = Date.now();
-  S.line = {base: Math.random() < .5 ? 'A' : 'B', g:null, m:null};
+  S.line = {base: ['A', 'B', 'C'][Math.floor(Math.random() * 3)], g:null, m:null};
   S.care = {food:0, toy:0, miss:0}; addDex();
   startAct('hatch', 1.6, {endText:'うまれた!'}); sfx('hatch');
   setTimeout(() => toast(`${spName()}が生まれた!`), 1100); setTimeout(speak, 1800);
@@ -1340,6 +1479,12 @@ const BONUS_DIST = 480, BONUS_SCORE = 1000, D = 6, GAUGE_MAX = 15, BOOST_SEC = 5
 const gc = $('#run'), gx = gc.getContext('2d');
 let R = null;
 
+function pickKind(){
+  const r = Math.random();
+  if (S.stage === 3) return r < .6 ? 's' : r < .8 ? 'r' : 'b';
+  if (S.stage >= 4) return ['r', 'b', 's'][Math.floor(r * 3)];
+  return r < .45 ? 'r' : r < .9 ? 'b' : 's';
+}
 function makeCourse(trial){
   const objs = [];
   const EVO_RATE = [.15, .25, .4, .55, .75, 1]; // 出なかった回数ごとの出現率
@@ -1353,7 +1498,7 @@ function makeCourse(trial){
     const cl = free[Math.floor(Math.random() * free.length)];
     for (let i = 0; i < 3; i++) objs.push({type:'coin', lane:cl, z:d + 2.5 + i * 1.6});
     if (evoAt > 0 && d >= evoAt){
-      objs.push({type:'evo', lane:free[free.length - 1], z:d + 4}); evoAt = -1;
+      objs.push({type:'evo', kind:pickKind(), lane:free[free.length - 1], z:d + 4}); evoAt = -1;
     }
     d += (trial ? 6.5 + Math.random() * 3 : 10 + Math.random() * 5) - d / LEN * 3;
   }
@@ -1418,7 +1563,7 @@ function updateRun(dt){
       o.done = true;
       if (o.type === 'rock'){ crash(); return; }
       if (o.type === 'coin'){ sfx('coin'); R.coins += R.boost > 0 ? 3 : 1; if (S.stage === 4 && R.boost <= 0) R.gauge = Math.min(GAUGE_MAX, R.gauge + 1); }
-      if (o.type === 'evo'){ R.item = true; sfx('gem'); }
+      if (o.type === 'evo'){ R.item = o.kind || 'b'; sfx('gem'); }
     }
   }
   if (R.flash > 0) R.flash -= dt;
@@ -1429,7 +1574,7 @@ function updateRun(dt){
     const blocked = new Set(R.objs.filter(o => o.type === 'rock' && Math.abs(o.z - z) < 3).map(o => o.lane));
     const lane = [1, 0, 2].find(l => !blocked.has(l)) ?? 1;
     R.objs = R.objs.filter(o => !(o.type === 'coin' && o.lane === lane && Math.abs(o.z - z) < 1));
-    R.objs.push({type:'evo', lane, z});
+    R.objs.push({type:'evo', kind:'s', lane, z});
     R.flash = 2; sfx('appear');
   }
   if (R.dist >= LEN) finish(true);
@@ -1449,7 +1594,7 @@ function finish(goal){
   if (goal) sfx('goal');
   const score = runScore(goal);
   S.coins += R.coins;
-  if (R.item) S.inv.evo = (S.inv.evo || 0) + 1;
+  if (R.item){ const id = ITEMS[R.item].id; S.inv[id] = (S.inv[id] || 0) + 1; }
   const appeared = R.objs.some(o => o.type === 'evo' && (o.done || o.z <= R.dist));
   if (!R.trial) S.evoMiss = appeared ? 0 : (S.evoMiss || 0) + 1;
   for (const k of ['hunger', 'happy', 'bath']){
@@ -1460,7 +1605,7 @@ function finish(goal){
   S.best = Math.max(S.best, score);
   let superMsg = '';
   if (S.stage === 3){
-    if (score >= SUPER_SCORE && !S.superReady){ S.superReady = true; superMsg = '<p>超生物のスコア条件を達成! あとは💎をあげると進化します。</p>'; }
+    if (score >= SUPER_SCORE && !S.superReady){ S.superReady = true; superMsg = '<p>超生物のスコア条件を達成! あとは⭐てんのかけらをあげると進化します。</p>'; }
     else if (!S.superReady) superMsg = `<p>超生物まで、あと${SUPER_SCORE - score}点</p>`;
   }
   save(); updateHud();
@@ -1478,7 +1623,7 @@ function finish(goal){
     <p class="big">🪙 ${R.coins}</p>
     ${R.halved ? '<p>暴走中にぶつかったので、コインが半分になった</p>' : ''}
     <p>スコア ${score}(ベスト ${S.best})</p>
-    ${R.item ? '<p>💎 進化のかけらを見つけた!</p>' : ''}
+    ${R.item ? `<p>${ITEMS[R.item].ic} ${ITEMS[R.item].name}を見つけた!</p>` : ''}
     ${superMsg}
     <button id="back">もどる</button></div>`;
   ov.hidden = false;
@@ -1582,13 +1727,20 @@ function drawRun(t){
       ell(gx, x, cy, r * .55 * sx, r * .55); gx.strokeStyle = '#E8A800'; gx.lineWidth = lwid * .7; gx.stroke();
       ell(gx, x - r * .35 * sx, cy - r * .4, r * .18 * sx, r * .25); gx.fillStyle = 'rgba(255,255,255,.8)'; gx.fill();
     } else {
+      const IT = ITEMS[o.kind || 'b'];
       const r = lw * .24 * s, cy = y - lw * .48 * s - Math.sin(t * 4) * r * .15;
-      gx.beginPath(); gx.moveTo(x, cy - r); gx.lineTo(x + r * .75, cy); gx.lineTo(x, cy + r); gx.lineTo(x - r * .75, cy); gx.closePath();
-      gx.fillStyle = C.evo; gx.fill();
-      gx.beginPath(); gx.moveTo(x, cy - r); gx.lineTo(x + r * .75, cy); gx.lineTo(x, cy - r * .1); gx.lineTo(x - r * .75, cy); gx.closePath();
-      gx.fillStyle = '#BFE0FF'; gx.fill();
-      gx.beginPath(); gx.moveTo(x, cy - r); gx.lineTo(x + r * .75, cy); gx.lineTo(x, cy + r); gx.lineTo(x - r * .75, cy); gx.closePath();
-      gx.strokeStyle = '#1C3E8A'; gx.lineWidth = lwid; gx.stroke();
+      if (o.kind === 's'){
+        star(gx, x, cy, r * 1.1, 5, .48); gx.fillStyle = IT.color; gx.fill();
+        star(gx, x - r * .1, cy - r * .12, r * .5, 5, .48); gx.fillStyle = IT.light; gx.fill();
+        star(gx, x, cy, r * 1.1, 5, .48); gx.strokeStyle = IT.line; gx.lineWidth = lwid; gx.stroke();
+      } else {
+        gx.beginPath(); gx.moveTo(x, cy - r); gx.lineTo(x + r * .75, cy); gx.lineTo(x, cy + r); gx.lineTo(x - r * .75, cy); gx.closePath();
+        gx.fillStyle = IT.color; gx.fill();
+        gx.beginPath(); gx.moveTo(x, cy - r); gx.lineTo(x + r * .75, cy); gx.lineTo(x, cy - r * .1); gx.lineTo(x - r * .75, cy); gx.closePath();
+        gx.fillStyle = IT.light; gx.fill();
+        gx.beginPath(); gx.moveTo(x, cy - r); gx.lineTo(x + r * .75, cy); gx.lineTo(x, cy + r); gx.lineTo(x - r * .75, cy); gx.closePath();
+        gx.strokeStyle = IT.line; gx.lineWidth = lwid; gx.stroke();
+      }
       gx.fillStyle = '#FFFFFF';
       const sp = r * (1.35 + Math.sin(t * 6) * .2);
       star(gx, x - sp, cy - sp * .6, r * .25, 4, .35); gx.fill();
